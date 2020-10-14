@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from utils.visualize import show_count_by_target
+from utils.visualize import show_hist_by_target
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -58,3 +60,39 @@ train.info()
 
 
 # %%
+train['income'] = train['income'].map({'<=50K': 0, '>50K': 1})
+train['income'].head()
+# %%
+
+
+object_columns = train.dtypes[train.dtypes == 'object'].index.tolist()
+object_columns = [col for col in object_columns if col not in ['income']]
+print(object_columns)
+
+
+# %%
+
+
+show_count_by_target(train, object_columns)
+
+
+# %%
+
+
+num_columns = train.dtypes[train.dtypes != 'object'].index.tolist()
+num_columns = [col for col in num_columns if col not in ['id']]
+print(num_columns)
+
+
+# %%
+
+
+show_hist_by_target(train, num_columns)
+
+
+# %%
+
+
+sns.boxplot(x='education_num', y='income', data=train)
+plt.show()
+
