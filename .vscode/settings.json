@@ -1,0 +1,6 @@
+{
+    "python.pythonPath": "/home/leewook/anaconda3/envs/kakr/bin/python",
+    "python.linting.pylintEnabled": false,
+    "python.linting.pylamaEnabled": true,
+    "python.linting.enabled": true
+}
