@@ -25,6 +25,13 @@ print(train.shape)
 train.head()
 
 
+# %%
+
+
+print(test.shape)
+test.head()
+
+
 # %% [markdown]
 
 
@@ -60,10 +67,12 @@ train.info()
 
 
 # %%
-train['income'] = train['income'].map({'<=50K': 0, '>50K': 1})
-train['income'].head()
-# %%
 
+
+train['income'].value_counts()
+
+
+# %%
 
 object_columns = train.dtypes[train.dtypes == 'object'].index.tolist()
 object_columns = [col for col in object_columns if col not in ['income']]
@@ -93,6 +102,73 @@ show_hist_by_target(train, num_columns)
 # %%
 
 
-sns.boxplot(x='education_num', y='income', data=train)
+sns.boxplot(x='education_num', data=train)
 plt.show()
+# %%
 
+
+from category_encoders.ordinal import OrdinalEncoder
+target = train['income'] != '<=50K'
+train.drop(['income'], axis=1, inplace=True)
+le_encoder = OrdinalEncoder(list(train.columns))
+train_le = le_encoder.fit_transform(train, target)
+test_le = le_encoder.transform(test)
+
+train_le.head()
+# %%
+train.head()
+# %%
+for col in object_columns:
+    train[col] = pd.factorize(train[col])[0]
+    test[col] = pd.factorize(test[col])[0]
+train.head()
+# %%
+train_le['workclass'].value_counts()
+# %%
+train['workclass'].value_counts()
+# %%
+test_le.head()
+# %%
+sns.displot(target)
+plt.show()
+# %%
+test.head()
+# %%
+test_le['workclass'].value_counts()
+# %%
+test['workclass'].value_counts()
+# %%
+from lightgbm import LGBMClassifier
+
+lgb_model = LGBMClassifier(
+                n_jobs=-1,
+                n_estimators=1000,
+                learning_rate=0.02,
+                num_leaves=32,
+                subsample=0.8,
+                max_depth=12,
+                silent=-1,
+                verbose=-1)
+lgb_model.fit(train_le, target)
+lgb_pred = lgb_model.predict(test_le).astype(np.int64)
+submission_test = pd.read_csv('../../data/sample_submission.csv')
+submission_test['predict'] = lgb_pred
+submission_test['predict'].value_counts()
+# %%
+lgb_model.fit(train, target)
+lgb_pred = lgb_model.predict(test).astype(np.int64)
+submission_test['predict'] = lgb_pred
+submission_test['predict'].value_counts()
+# %%
+from catboost import CatBoostClassifier
+cat_clf = CatBoostClassifier()
+cat_clf.fit(train_le, target)
+cat_pred = cat_clf.predict(test_le)
+submission_test['predict'] = cat_pred
+
+submission_test['predict'].value_counts()
+# %%
+submission_test['predict'] = submission_test['predict'].astype(np.bool)
+# %%
+submission_test['predict'] = submission_test['predict'].astype(np.int64)
+# %%
