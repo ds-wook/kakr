@@ -9,7 +9,7 @@ import argparse
 from utils.fea_eng import data_load
 from utils.fea_eng import target_astype
 from utils.fea_eng import drop_target
-from utils.fea_eng import ordinal_encoder
+from utils.fea_eng import one_hot_encoder
 # from utils.evaluation import get_clf_eval
 from model.stacking import get_stacking_base_datasets
 import warnings
@@ -26,14 +26,21 @@ if __name__ == "__main__":
                        help='save the submit csv file',
                        default='../../res')
 
+    parse.add_argument('--file', type=str,
+                       help='naming file name',
+                       default='/submission.csv')
+
     args = parse.parse_args()
 
     train, test, submission = data_load(args.path)
     target = target_astype(train)
-    train = drop_target(train)
-    train_le, test_le = ordinal_encoder(train, target, test)
+    train, test = drop_target(train, test)
+    # train_le, test_le = ordinal_encoder(train, target, test)
+    train_oh, test_oh = one_hot_encoder(train, test)
+    test_oh.drop('native_country_Holand-Netherlands', axis=1, inplace=True)
+
     X_train, X_test, y_train, y_test =\
-        train_test_split(train_le, target, test_size=0.2, random_state=2020)
+        train_test_split(train_oh, target, test_size=0.2, random_state=2020)
 
     # lgbm 분류기
     lgb_clf = LGBMClassifier(
@@ -67,7 +74,6 @@ if __name__ == "__main__":
 
     # logistic 분류기
     ada_clf = AdaBoostClassifier(n_estimators=1000)
-
     '''
     xgb_train, xgb_test =\
         get_stacking_base_datasets(xgb_clf, X_train, y_train, X_test, 5)
@@ -96,19 +102,19 @@ if __name__ == "__main__":
     stacking_final = lgb_clf.predict(stacking_final_X_test)
 
     get_clf_eval(y_test, stacking_final)
-    '''
 
+    '''
     xgb_train, xgb_test =\
-        get_stacking_base_datasets(xgb_clf, train_le, target, test_le, 5)
+        get_stacking_base_datasets(xgb_clf, train_oh, target, test_oh, 5)
 
     cat_train, cat_test =\
-        get_stacking_base_datasets(cat_clf, train_le, target, test_le, 5)
+        get_stacking_base_datasets(cat_clf, train_oh, target, test_oh, 5)
 
     rf_train, rf_test =\
-        get_stacking_base_datasets(rf_clf, train_le, target, test_le, 5)
+        get_stacking_base_datasets(rf_clf, train_oh, target, test_oh, 5)
 
     ada_train, ada_test =\
-        get_stacking_base_datasets(ada_clf, train_le, target, test_le, 5)
+        get_stacking_base_datasets(ada_clf, train_oh, target, test_oh, 5)
 
     stacking_final_X_train =\
         np.concatenate([rf_train, xgb_train, cat_train, ada_train], axis=1)
@@ -121,4 +127,4 @@ if __name__ == "__main__":
     stacking_final = lgb_clf.predict(stacking_final_X_test)
 
     submission['prediction'] = stacking_final
-    submission.to_csv(args.submit + '/stacking_model02.csv', index=False)
+    submission.to_csv(args.submit + '/stacking_model03.csv', index=False)

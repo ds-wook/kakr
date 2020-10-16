@@ -20,9 +20,11 @@ def target_astype(
 
 
 def drop_target(
-        train: pd.DataFrame) -> pd.DataFrame:
-    train.drop('income', axis=1, inplace=True)
-    return train
+        train: pd.DataFrame,
+        test: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    train.drop(['id', 'income'], axis=1, inplace=True)
+    test.drop(['id'], axis=1, inplace=True)
+    return train, test
 
 
 def ordinal_encoder(
@@ -35,3 +37,12 @@ def ordinal_encoder(
     test_le = le_encoder.transform(test)
 
     return train_le, test_le
+
+
+def one_hot_encoder(
+        train: pd.DataFrame,
+        test: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+
+    train_oh = pd.get_dummies(train)
+    test_oh = pd.get_dummies(test)
+    return train_oh, test_oh
