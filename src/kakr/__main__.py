@@ -6,7 +6,6 @@ from utils.fea_eng import data_load
 from utils.fea_eng import target_astype
 from utils.fea_eng import drop_target
 from utils.fea_eng import ordinal_encoder
-from model.kfold_model import kfold_model
 from model.kfold_model import stratified_kfold_model
 import warnings
 warnings.filterwarnings('ignore')
