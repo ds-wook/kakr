@@ -5,14 +5,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from utils.visualize import show_count_by_target
-from utils.visualize import show_hist_by_target
 import warnings
 warnings.filterwarnings('ignore')
 
 
-# %%
-
+# %% [markdown]
+'''
+### train test load
+'''
 
 train = pd.read_csv('../../data/train.csv')
 test = pd.read_csv('../../data/test.csv')
@@ -68,39 +68,95 @@ train.info()
 
 # %%
 
-
+train['income'] = train['income'].apply(lambda x: 0 if x == '<=50K' else 1)
 train['income'].value_counts()
 
 
 # %%
 
-object_columns = train.dtypes[train.dtypes == 'object'].index.tolist()
-object_columns = [col for col in object_columns if col not in ['income']]
-print(object_columns)
-
-
+train['income'] = train['income']
 # %%
 
+all_data = pd.concat([train, test], sort=False)
 
-show_count_by_target(train, object_columns)
 
-
+# %% [markdown]
+'''
+### workclass: 직장
+'''
 # %%
-
-
-num_columns = train.dtypes[train.dtypes != 'object'].index.tolist()
-num_columns = [col for col in num_columns if col not in ['id']]
-print(num_columns)
-
-
+all_data['workclass'].value_counts()
 # %%
-
-
-show_hist_by_target(train, num_columns)
-
-
-# %%
-
-
-sns.boxplot(x='education_num', data=train)
+grouped = all_data.groupby('workclass')['income'].mean().sort_values()
+grouped = grouped.reset_index()
+sns.barplot(x='workclass', y='income', data=grouped)
+plt.xticks(rotation=30)
 plt.show()
+# %%
+workclass_other = ['Without-pay', 'Never-worked']
+all_data['workclass'] = all_data['workclass'].apply(lambda x: 'Other' if x in workclass_other else x)
+
+# %%
+all_data['workclass'].value_counts()
+# %% [markdown]
+'''
+### age: 나이
+'''
+# %%
+income0 = all_data.loc[all_data['income'] == 0, 'age']
+income1 = all_data.loc[all_data['income'] == 1, 'age']
+
+plt.figure(figsize=(10, 7))
+sns.distplot(income0, kde=True, rug=True, hist=False, color='blue')
+sns.distplot(income1, kde=True, rug=True, hist=False, color='red')
+plt.show()
+# %%
+sns.distplot(np.log(all_data['fnlwgt']))
+# %%
+all_data['fnlwgt_log'] = np.log(all_data['fnlwgt'])
+# %%
+all_data['education'].value_counts()
+# %%
+all_data[all_data['education'] == 'Preschool']['income'].sum()
+
+# %%
+grouped = all_data.groupby('education')['income'].agg(['mean', 'count'])
+grouped = grouped.sort_values('mean').reset_index()
+grouped
+# %%
+edu_col = grouped['education'].values.tolist()
+edu_col
+# %%
+lev_col = [f'level_{i}' for i in range(10)]
+lev_col += ['level_1', 'level_2', 'level_3', 'level_3', 'level_6', 'level_9']
+lev_col.sort()
+lev_col
+# %%
+education_map = {edu: lev for edu, lev in zip(edu_col, lev_col)}
+all_data['education'] = all_data['education'].map(education_map)
+all_data['education'].value_counts()
+# %%
+all_data.drop('education_num', axis=1, inplace=True)
+# %%
+all_data.columns
+# %%
+all_data['marital_status'].value_counts()
+# %%
+all_data.groupby(['marital_status'])['income'].agg(['mean', 'count'])
+
+# %%
+all_data.loc[all_data['marital_status'] == 'Married-AF-spouse',
+             'marital_status'] = 'Married-civ-spouse'
+all_data['marital_status'].value_counts()
+# %%
+all_data['occupation'].value_counts()
+# %%
+all_data.loc[train['occupation'].isin(['Armed-Forces', 'Priv-house-serv']), 'income'].value_counts()
+# %%
+all_data.loc[all_data['occupation'].isin(['Armed-Forces', 'Priv-house-serv']),
+             'occupation'] = 'Priv-house-serv'
+# %%
+all_data['occupation'].value_counts()
+# %%
+train['education'].unique().tolist()
+# %%

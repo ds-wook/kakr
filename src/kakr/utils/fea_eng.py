@@ -46,3 +46,20 @@ def one_hot_encoder(
     train_oh = pd.get_dummies(train)
     test_oh = pd.get_dummies(test)
     return train_oh, test_oh
+
+
+def education_map(
+        train: pd.DataFrame,
+        test: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    grouped = train.groupby(['education'])['income'].agg(['mean', 'count'])
+    grouped = grouped.sort_values('mean').reset_index()
+    edu_col = grouped['education'].values.tolist()
+    lev_col = [f'level_{i}' for i in range(10)]
+    lev_col += ['level_1', 'level_2', 'level_3', 'level_3',
+                'level_6', 'level_9']
+    lev_col = sorted(lev_col)
+    education_map = {edu: lev for edu, lev in zip(edu_col, lev_col)}
+    train['education'] = train['education'].map(education_map)
+    test['education'] = test['education'].map(education_map)
+
+    return train, test

@@ -12,5 +12,5 @@ def get_clf_eval(
     precision = precision_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)
-    print(f'Acc: {accuracy:.3f}, Precision: {precision:.3f}', end=' ')
-    print(f'Recall: {recall:.3f}, F1 score: {f1:.3f}')
+    print(f'Acc: {accuracy:.5f}, Precision: {precision:.5f}', end=' ')
+    print(f'Recall: {recall:.5f}, F1 score: {f1:.5f}')

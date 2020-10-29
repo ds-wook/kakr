@@ -1,17 +1,13 @@
 from lightgbm import LGBMClassifier
-from catboost import CatBoostClassifier
 from xgboost import XGBClassifier
-from sklearn.ensemble import AdaBoostClassifier
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
 import argparse
 from utils.fea_eng import data_load
 from utils.fea_eng import target_astype
 from utils.fea_eng import drop_target
-from utils.fea_eng import one_hot_encoder
-# from utils.evaluation import get_clf_eval
-from model.stacking import get_stacking_base_datasets
+from utils.fea_eng import ordinal_encoder
+from model.kfold_model import kfold_model
+from model.kfold_model import stratified_kfold_model
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -24,107 +20,35 @@ if __name__ == "__main__":
 
     parse.add_argument('--submit', type=str,
                        help='save the submit csv file',
-                       default='../../res')
+                       default='../../res/')
 
     parse.add_argument('--file', type=str,
                        help='naming file name',
-                       default='/submission.csv')
+                       default='submission.csv')
 
     args = parse.parse_args()
 
     train, test, submission = data_load(args.path)
     target = target_astype(train)
     train, test = drop_target(train, test)
-    # train_le, test_le = ordinal_encoder(train, target, test)
-    train_oh, test_oh = one_hot_encoder(train, test)
-    test_oh.drop('native_country_Holand-Netherlands', axis=1, inplace=True)
-
-    X_train, X_test, y_train, y_test =\
-        train_test_split(train_oh, target, test_size=0.2, random_state=2020)
+    train_le, test_le = ordinal_encoder(train, target, test)
 
     # lgbm 분류기
-    lgb_clf = LGBMClassifier(
-                n_jobs=-1,
-                n_estimators=1000,
-                random_state=2020,
-                learning_rate=0.02,
-                num_leaves=32,
-                subsample=0.8,
-                max_depth=12,
-                silent=-1,
-                verbose=-1)
-
+    lgb_clf = LGBMClassifier(objective='binary', verbose=400, random_state=91)
     # xgb 분류기
-    xgb_clf = XGBClassifier(
-                n_jobs=-1,
-                n_estimators=1000,
-                learning_rate=0.02,
-                random_state=2020)
+    xgb_clf = XGBClassifier(objective='binary', verbosity=400, random_state=91)
 
-    # cat 분류기
-    cat_clf = CatBoostClassifier()
+    lgb_preds = stratified_kfold_model(lgb_clf, 5, train_le, target, test_le)
+    xgb_preds = stratified_kfold_model(lgb_clf, 5, train_le, target, test_le)
 
-    # random forest 분류기
-    rf_clf = RandomForestClassifier(
-                n_jobs=-1,
-                n_estimators=1000,
-                max_depth=12,
-                random_state=2020,
-                verbose=-1)
+    y_preds = 0.6 * lgb_preds + 0.4 * xgb_preds
 
-    # logistic 분류기
-    ada_clf = AdaBoostClassifier(n_estimators=1000)
-    '''
-    xgb_train, xgb_test =\
-        get_stacking_base_datasets(xgb_clf, X_train, y_train, X_test, 5)
+    submission['prediction'] = y_preds
 
-    cat_train, cat_test =\
-        get_stacking_base_datasets(cat_clf, X_train, y_train, X_test, 5)
-
-    rf_train, rf_test =\
-        get_stacking_base_datasets(rf_clf, X_train, y_train, X_test, 5)
-
-    ada_train, ada_test =\
-        get_stacking_base_datasets(ada_clf, X_train, y_train, X_test, 5)
-
-    stacking_final_X_train =\
-        np.concatenate([rf_train, xgb_train, cat_train, ada_train], axis=1)
-
-    stacking_final_X_test =\
-        np.concatenate([rf_test, xgb_test, cat_test, ada_test], axis=1)
-
-    lgb_clf.fit(stacking_final_X_train, y_train,
-                eval_set=[(stacking_final_X_train, y_train),
-                          (stacking_final_X_test, y_test)],
-                verbose=100,
-                early_stopping_rounds=100)
-
-    stacking_final = lgb_clf.predict(stacking_final_X_test)
-
-    get_clf_eval(y_test, stacking_final)
-
-    '''
-    xgb_train, xgb_test =\
-        get_stacking_base_datasets(xgb_clf, train_oh, target, test_oh, 5)
-
-    cat_train, cat_test =\
-        get_stacking_base_datasets(cat_clf, train_oh, target, test_oh, 5)
-
-    rf_train, rf_test =\
-        get_stacking_base_datasets(rf_clf, train_oh, target, test_oh, 5)
-
-    ada_train, ada_test =\
-        get_stacking_base_datasets(ada_clf, train_oh, target, test_oh, 5)
-
-    stacking_final_X_train =\
-        np.concatenate([rf_train, xgb_train, cat_train, ada_train], axis=1)
-
-    stacking_final_X_test =\
-        np.concatenate([rf_test, xgb_test, cat_test, ada_test], axis=1)
-
-    lgb_clf.fit(stacking_final_X_train, target)
-
-    stacking_final = lgb_clf.predict(stacking_final_X_test)
-
-    submission['prediction'] = stacking_final
-    submission.to_csv(args.submit + '/stacking_model03.csv', index=False)
+    for ix, row in submission.iterrows():
+        if row['prediction'] > 0.5:
+            submission.loc[ix, 'prediction'] = 1
+        else:
+            submission.loc[ix, 'prediction'] = 0
+    submission = submission.astype({'prediction': np.int64})
+    submission.to_csv(args.submit + args.file, index=False)
