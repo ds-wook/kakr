@@ -1,5 +1,4 @@
 from lightgbm import LGBMClassifier
-from xgboost import XGBClassifier
 import numpy as np
 import argparse
 from utils.fea_eng import data_load
