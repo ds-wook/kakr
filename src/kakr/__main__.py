@@ -34,13 +34,11 @@ if __name__ == "__main__":
 
     # lgbm 분류기
     lgb_clf = LGBMClassifier(objective='binary', verbose=400, random_state=91)
-    # xgb 분류기
-    xgb_clf = XGBClassifier(objective='binary', verbosity=400, random_state=91)
 
-    lgb_preds = stratified_kfold_model(lgb_clf, 5, train_le, target, test_le)
-    xgb_preds = stratified_kfold_model(lgb_clf, 5, train_le, target, test_le)
+    lgb_preds1 = stratified_kfold_model(lgb_clf, 5, train_le, target, test_le)
+    lgb_preds2 = stratified_kfold_model(lgb_clf, 5, train_le, target, test_le)
 
-    y_preds = 0.6 * lgb_preds + 0.4 * xgb_preds
+    y_preds = 0.6 * lgb_preds1 + 0.4 * lgb_preds2
 
     submission['prediction'] = y_preds
 
