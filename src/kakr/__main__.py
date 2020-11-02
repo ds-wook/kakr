@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser('Baseline Modeling')
     parse.add_argument('--path', type=str,
                        help='Input data load path',
-                       default='../../data')
+                       default='../../data/')
 
     parse.add_argument('--submit', type=str,
                        help='save the submit csv file',
