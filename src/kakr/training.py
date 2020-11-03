@@ -2,6 +2,7 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 import numpy as np
 import argparse
+from sklearn.model_selection import train_test_split
 from optim.bayesian_train import xgb_cv
 from optim.bayesian_optim import xgb_parameter
 from utils.preprocessing import data_load
@@ -16,6 +17,7 @@ from utils.preprocessing import convert_country_data
 from utils.preprocessing import delete_column
 from utils.preprocessing import ohe_data
 from utils.preprocessing import split_data
+from utils.evaluation import get_clf_eval
 from model.kfold_model import kfold_model
 from model.kfold_model import stratified_kfold_model
 
@@ -48,6 +50,9 @@ if __name__ == "__main__":
     all_data_ohe = ohe_data(all_data)
     train_ohe, test_ohe, target = split_data(all_data_ohe, train)
 
+    X_train, X_test, y_train, y_test =\
+        train_test_split(train_ohe, target, test_size=0.2, random_state=91)
+
     # lgbm 분류기
     lgb_clf = LGBMClassifier(objective='binary', verbose=400, random_state=91)
 
@@ -67,16 +72,20 @@ if __name__ == "__main__":
                 max_depth=int(round(bo_xgb['max_depth'])),
                 subsample=bo_xgb['subsample'],
                 gamma=bo_xgb['gamma'])
-    lgb_preds = stratified_kfold_model(lgb_clf, 5, train_ohe, target, test_ohe)
-    xgb_preds = kfold_model(xgb_clf, 5, train_ohe, target, test_ohe)
+    lgb_preds = stratified_kfold_model(lgb_clf, 5, X_train, y_train, X_test)
+    xgb_preds = kfold_model(xgb_clf, 5, X_train, y_train, X_test)
 
     y_preds = 0.6 * lgb_preds + 0.4 * xgb_preds
-    submission['prediction'] = y_preds
+    lgb_preds = np.array([1 if prob > 0.5 else 0 for prob in lgb_preds])
+    lgb_preds = lgb_preds.reshape(-1, 1)
+    xgb_preds = np.array([1 if prob > 0.5 else 0 for prob in xgb_preds])
+    xgb_preds = xgb_preds.reshape(-1, 1)
+    y_preds = np.array([1 if prob > 0.5 else 0 for prob in y_preds])
+    y_preds = y_preds.reshape(-1, 1)
 
-    for ix, row in submission.iterrows():
-        if row['prediction'] > 0.5:
-            submission.loc[ix, 'prediction'] = 1
-        else:
-            submission.loc[ix, 'prediction'] = 0
-    submission = submission.astype({'prediction': np.int64})
-    submission.to_csv(args.submit + args.file, index=False)
+    print('light gbm')
+    get_clf_eval(y_test, lgb_preds)
+    print('xgb')
+    get_clf_eval(y_test, xgb_preds)
+    print('ensemble')
+    get_clf_eval(y_test, y_preds)
