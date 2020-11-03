@@ -35,20 +35,24 @@ X_train, X_test, y_train, y_test =\
 
 
 def lgbm_cv(
-        learning_rate: float,
         num_leaves: int,
         max_depth: int,
-        min_child_weight: int,
-        colsample_bytree: int,
+        min_child_samples: int,
+        subsample: float,
+        colsample_bytree: float,
+        max_bin: float,
         reg_alpha: float,
         reg_lambda: float) -> float:
 
     model = LGBMClassifier(
-                learning_rate=learning_rate,
+                n_estimators=500,
+                learning_rate=0.02,
                 num_leaves=int(round(num_leaves)),
                 max_depth=int(round(max_depth)),
-                min_child_weight=int(round(min_child_weight)),
-                colsample_bytree=colsample_bytree,
+                min_child_samples=int(round(min_child_samples)),
+                subsample=max(min(subsample, 1), 0),
+                colsample_bytree=max(min(colsample_bytree, 1), 0),
+                max_bin=max(int(round(max_bin)), 10),
                 reg_alpha=max(reg_alpha, 0),
                 reg_lambda=max(reg_lambda, 0),
                 random_state=91
