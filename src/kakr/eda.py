@@ -58,11 +58,6 @@ test.head()
   >50K : 1
   <=50K : 0
 '''
-
-
-# %%
-
-
 train.info()
 
 
@@ -75,6 +70,8 @@ train['income'].value_counts()
 # %%
 
 train['income'] = train['income']
+
+
 # %%
 
 all_data = pd.concat([train, test], sort=False)
@@ -102,7 +99,6 @@ all_data['workclass'].value_counts()
 '''
 ### age: 나이
 '''
-# %%
 income0 = all_data.loc[all_data['income'] == 0, 'age']
 income1 = all_data.loc[all_data['income'] == 1, 'age']
 
@@ -114,18 +110,34 @@ plt.show()
 sns.distplot(np.log(all_data['fnlwgt']))
 # %%
 all_data['fnlwgt_log'] = np.log(all_data['fnlwgt'])
-# %%
+# %% [markdown]
+'''
+### education: 교육
+'''
 all_data['education'].value_counts()
-# %%
+# %%[markdown]
+'''
+#### 학교를 안나온 사람들에 대한 수입 통계
+'''
 all_data[all_data['education'] == 'Preschool']['income'].sum()
 
-# %%
+# %% [markdown]
+'''
+#### 교육에 대한 수입 평균
+'''
+
 grouped = all_data.groupby('education')['income'].agg(['mean', 'count'])
 grouped = grouped.sort_values('mean').reset_index()
 grouped
+
+
 # %%
+
+
 edu_col = grouped['education'].values.tolist()
 edu_col
+
+
 # %%
 lev_col = [f'level_{i}' for i in range(10)]
 lev_col += ['level_1', 'level_2', 'level_3', 'level_3', 'level_6', 'level_9']
@@ -139,24 +151,51 @@ all_data['education'].value_counts()
 all_data.drop('education_num', axis=1, inplace=True)
 # %%
 all_data.columns
-# %%
+# %% [markdown]
+
+
+'''
+#####marital_status: 결혼 상태
+'''
 all_data['marital_status'].value_counts()
-# %%
-all_data.groupby(['marital_status'])['income'].agg(['mean', 'count'])
+
 
 # %%
+
+
+all_data.groupby(['marital_status'])['income'].agg(['mean', 'count'])
+
+
+# %%
+
+# 배우자에 의한 결혼의 비율을 같은 feature로 묶어줌
+
 all_data.loc[all_data['marital_status'] == 'Married-AF-spouse',
              'marital_status'] = 'Married-civ-spouse'
 all_data['marital_status'].value_counts()
-# %%
+
+
+# %%[markdown]
+'''
+### occupation: 직업
+'''
+
 all_data['occupation'].value_counts()
+
+
 # %%
-all_data.loc[train['occupation'].isin(['Armed-Forces', 'Priv-house-serv']), 'income'].value_counts()
-# %%
+
+all_data.loc[train['occupation'].isin(['Armed-Forces', 'Priv-house-serv']),
+             'income'].value_counts()
+
+
+# %% [markdown]
+'''
+### 거의 없는 직업군끼리는 서로 묶어준다.
+'''
+
 all_data.loc[all_data['occupation'].isin(['Armed-Forces', 'Priv-house-serv']),
              'occupation'] = 'Priv-house-serv'
-# %%
-all_data['occupation'].value_counts()
-# %%
-train['education'].unique().tolist()
+
+
 # %%
