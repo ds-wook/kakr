@@ -2,23 +2,12 @@ from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 import numpy as np
 import argparse
-from optim.bayesian_train import lgbm_cv
-from optim.bayesian_optim import lgbm_parameter
-from optim.bayesian_train import xgb_cv
-from optim.bayesian_optim import xgb_parameter
+from optim.bayesian_test import lgbm_cv, xgb_cv
+from optim.bayesian_optim import lgbm_parameter, xgb_parameter
 from utils.preprocessing import data_load
-from utils.preprocessing import concat_data
-from utils.preprocessing import other_workclass
-from utils.preprocessing import fnlwgt_log
-from utils.preprocessing import education_map
-from utils.preprocessing import marital_status_data
-from utils.preprocessing import occupation_data
-from utils.preprocessing import capital_net_data
-from utils.preprocessing import convert_country_data
-from utils.preprocessing import delete_column
-from utils.preprocessing import ohe_data
-from utils.preprocessing import split_data
-from model.kfold_model import stratified_kfold_model
+from utils.fea_eng import lgbm_preprocessing, xgb_preprocessing
+from model.kfold_model import stratified_kfold_model, kfold_model
+
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser('Baseline Modeling')
@@ -37,21 +26,13 @@ if __name__ == "__main__":
     args = parse.parse_args()
 
     train, test, submission = data_load(args.path)
-    all_data = concat_data(train, test)
-    all_data = other_workclass(all_data)
-    all_data = fnlwgt_log(all_data)
-    all_data = education_map(all_data)
-    all_data = marital_status_data(all_data)
-    all_data = occupation_data(all_data)
-    all_data = capital_net_data(all_data)
-    all_data = convert_country_data(all_data)
-    all_data = delete_column(all_data)
-    all_data_ohe = ohe_data(all_data)
-    train_ohe, test_ohe, target = split_data(all_data_ohe, train)
+    train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
+    print(f'train shape: {train_ohe.shape}')
+    print(f'test shape: {test_ohe.shape}')
 
     lgb_param_bounds = {
-        'max_depth': (6, 16),
-        'num_leaves': (24, 64),
+        'max_depth': (4, 10),
+        'num_leaves': (24, 1024),
         'min_child_samples': (10, 200),
         'subsample': (0.5, 1),
         'colsample_bytree': (0.5, 1),
@@ -59,6 +40,7 @@ if __name__ == "__main__":
         'reg_lambda': (0.001, 10),
         'reg_alpha': (0.01, 50)
     }
+
     bo_lgb = lgbm_parameter(lgbm_cv, lgb_param_bounds)
 
     # lgbm 분류기
@@ -77,13 +59,21 @@ if __name__ == "__main__":
                 reg_lambda=max(bo_lgb['reg_lambda'], 0),
                 reg_alpha=max(bo_lgb['reg_alpha'], 0)
                 )
+    lgb_preds = stratified_kfold_model(lgb_clf, 5, train_ohe, label, test_ohe)
+
+    train, test, submission = data_load('../../data/')
+    train_ohe, test_ohe, label = xgb_preprocessing(train, test)
+    print(f'train shape: {train_ohe.shape}')
+    print(f'test shape: {test_ohe.shape}')
 
     xgb_param_bounds = {
         'learning_rate': (0.001, 0.1),
         'n_estimators': (100, 1000),
         'max_depth': (3, 8),
         'subsample': (0.4, 1.0),
-        'gamma': (0, 3)}
+        'gamma': (0, 3)
+    }
+
     bo_xgb = xgb_parameter(xgb_cv, xgb_param_bounds)
     # xgb 분류기
     xgb_clf = XGBClassifier(
@@ -94,16 +84,15 @@ if __name__ == "__main__":
                 max_depth=int(round(bo_xgb['max_depth'])),
                 subsample=bo_xgb['subsample'],
                 gamma=bo_xgb['gamma'])
-    lgb_preds = stratified_kfold_model(lgb_clf, 5, train_ohe, target, test_ohe)
-    xgb_preds = stratified_kfold_model(xgb_clf, 5, train_ohe, target, test_ohe)
+    xgb_preds = kfold_model(xgb_clf, 5, train_ohe, label, test_ohe)
 
-    y_preds = 0.6 * lgb_preds + 0.4 * xgb_preds
-    submission['prediction'] = y_preds
-
+    xgbensemble_preds = 0.4 * lgb_preds + 0.6 * xgb_preds
+    
+    submission['prediction'] = xgbensemble_preds
     for ix, row in submission.iterrows():
         if row['prediction'] > 0.5:
             submission.loc[ix, 'prediction'] = 1
         else:
             submission.loc[ix, 'prediction'] = 0
     submission = submission.astype({'prediction': np.int64})
-    submission.to_csv(args.submit + args.file, index=False)
+    submission.to_csv(args.submit + 'bayesian_weight_xgb.csv', index=False)

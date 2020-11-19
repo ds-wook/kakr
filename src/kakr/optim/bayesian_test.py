@@ -5,7 +5,6 @@ from sklearn.metrics import make_scorer
 from sklearn.metrics import f1_score
 from utils.preprocessing import data_load
 from utils.fea_eng import lgbm_preprocessing, xgb_preprocessing
-from sklearn.model_selection import train_test_split
 
 
 def lgbm_cv(
@@ -19,9 +18,6 @@ def lgbm_cv(
         reg_lambda: float) -> float:
     train, test, submission = data_load('../../data/')
     train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
-
-    X_train, X_test, y_train, y_test =\
-        train_test_split(train_ohe, label, test_size=0.25, random_state=91)
 
     model = LGBMClassifier(
                 n_estimators=500,
@@ -38,7 +34,7 @@ def lgbm_cv(
             )
 
     scoring = {'f1_score': make_scorer(f1_score)}
-    result = cross_validate(model, X_train, y_train, cv=5, scoring=scoring)
+    result = cross_validate(model, train_ohe, label, cv=5, scoring=scoring)
     f1 = result['test_f1_score'].mean()
     return f1
 
@@ -52,17 +48,16 @@ def xgb_cv(
     train, test, submission = data_load('../../data/')
     train_ohe, test_ohe, label = xgb_preprocessing(train, test)
 
-    X_train, X_test, y_train, y_test =\
-        train_test_split(train_ohe, label, test_size=0.25, random_state=91)
     model = XGBClassifier(
             learning_rate=learning_rate,
             n_estimators=int(round(n_estimators)),
             max_depth=int(round(max_depth)),
-            subsample=subsample,
+            subsample=max(min(subsample, 1), 0),
             gamma=gamma,
-            random_state=91)
+            random_state=91
+        )
 
     scoring = {'f1_score': make_scorer(f1_score)}
-    result = cross_validate(model, X_train, y_train, cv=5, scoring=scoring)
+    result = cross_validate(model, train_ohe, label, cv=5, scoring=scoring)
     f1 = result['test_f1_score'].mean()
     return f1

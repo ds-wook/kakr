@@ -90,6 +90,8 @@ sns.barplot(x='workclass', y='income', data=grouped)
 plt.xticks(rotation=30)
 plt.show()
 # %%
+all_data.groupby('workclass')['income'].mean().to_dict()
+# %%
 workclass_other = ['Without-pay', 'Never-worked']
 all_data['workclass'] = all_data['workclass'].apply(lambda x: 'Other' if x in workclass_other else x)
 
@@ -198,4 +200,8 @@ all_data.loc[all_data['occupation'].isin(['Armed-Forces', 'Priv-house-serv']),
              'occupation'] = 'Priv-house-serv'
 
 
+# %%
+train.dtypes[train.dtypes == 'object'].index
+# %%
+all_data.groupby('workclass')['income'].mean().to_dict()['income']
 # %%
