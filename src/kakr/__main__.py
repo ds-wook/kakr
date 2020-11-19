@@ -1,10 +1,10 @@
 from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
-import numpy as np
 import argparse
 from optim.bayesian_test import lgbm_cv, xgb_cv
 from optim.bayesian_optim import lgbm_parameter, xgb_parameter
 from utils.preprocessing import data_load
+from utils.submission import submit_file
 from utils.fea_eng import lgbm_preprocessing, xgb_preprocessing
 from model.kfold_model import stratified_kfold_model, kfold_model
 
@@ -85,14 +85,5 @@ if __name__ == "__main__":
                 subsample=bo_xgb['subsample'],
                 gamma=bo_xgb['gamma'])
     xgb_preds = kfold_model(xgb_clf, 5, train_ohe, label, test_ohe)
-
-    xgbensemble_preds = 0.4 * lgb_preds + 0.6 * xgb_preds
-    
-    submission['prediction'] = xgbensemble_preds
-    for ix, row in submission.iterrows():
-        if row['prediction'] > 0.5:
-            submission.loc[ix, 'prediction'] = 1
-        else:
-            submission.loc[ix, 'prediction'] = 0
-    submission = submission.astype({'prediction': np.int64})
-    submission.to_csv(args.submit + 'bayesian_weight_xgb.csv', index=False)
+    y_preds = 0.5 * lgb_preds + 0.5 * xgb_preds
+    submission = submit_file(submission, y_preds, args.submit, args.file)
