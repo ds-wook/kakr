@@ -1,15 +1,17 @@
 from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
+from catboost import CatBoostClassifier
 import numpy as np
 import argparse
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import VotingClassifier
-from optim.bayesian_train import lgbm_cv, xgb_cv
-from optim.bayesian_optim import lgbm_parameter, xgb_parameter
+from optim.bayesian_train import lgbm_cv, xgb_cv, cat_cv
+from optim.bayesian_optim import lgbm_parameter, xgb_parameter, cat_parameter
 from utils.evaluation import get_clf_eval
 from utils.preprocessing import data_load
 from utils.fea_eng import xgb_preprocessing, lgbm_preprocessing
 from model.kfold_model import stratified_kfold_model, voting_kfold_model
+
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser('Baseline Modeling')
@@ -33,7 +35,7 @@ if __name__ == "__main__":
     print(f'test shape: {test_ohe.shape}')
 
     X_train, X_test, y_train, y_test =\
-        train_test_split(train_ohe, label, test_size=0.25, random_state=91)
+        train_test_split(train_ohe, label, test_size=0.3, random_state=91)
 
     lgb_param_bounds = {
         'max_depth': (4, 10),
@@ -66,9 +68,12 @@ if __name__ == "__main__":
     lgb_preds = stratified_kfold_model(lgb_clf, 5, X_train, y_train, X_test)
 
     train, test, submission = data_load(args.path)
-    train_ohe, test_ohe, label = xgb_preprocessing(train, test)
+    train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
     print(f'train shape: {train_ohe.shape}')
     print(f'test shape: {test_ohe.shape}')
+
+    X_train, X_test, y_train, y_test =\
+        train_test_split(train_ohe, label, test_size=0.3, random_state=91)
 
     xgb_param_bounds = {
         'learning_rate': (0.001, 0.1),
@@ -87,19 +92,49 @@ if __name__ == "__main__":
                 max_depth=int(round(bo_xgb['max_depth'])),
                 subsample=max(min(bo_xgb['subsample'], 1), 0),
                 gamma=bo_xgb['gamma'])
+
     xgb_preds = stratified_kfold_model(xgb_clf, 5, X_train, y_train, X_test)
-    y_preds = 0.5 * lgb_preds + 0.5 * xgb_preds
+
+    train, test, submission = data_load(args.path)
+    train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
+
+    print(f'train shape: {train_ohe.shape}')
+    print(f'test shape: {test_ohe.shape}')
+
+    X_train, X_test, y_train, y_test =\
+        train_test_split(train_ohe, label, test_size=0.3, random_state=91)
+    '''
+    cat_param_bounds = {
+        'iterations': (10, 1000),
+        'depth': (1, 8),
+        'learning_rate': (0.01, 1),
+        'random_strength': (0.01, 10),
+        'bagging_temperature': (0.0, 1.0),
+        'border_count': (1, 255),
+        'l2_leaf_reg': (2, 30),
+        'scale_pos_weight': (0.01, 1)
+    }
+    bo_cat = cat_parameter(cat_cv, cat_param_bounds)
+    '''
+    cat_clf = CatBoostClassifier()
+
+    cat_preds = voting_kfold_model(cat_clf, 5, X_train, y_train, X_test)
+
+    y_preds = 0.4 * lgb_preds + 0.3 * xgb_preds + 0.3 * cat_preds
 
     lgb_preds = np.array([1 if prob > 0.5 else 0 for prob in lgb_preds])
     lgb_preds = lgb_preds.reshape(-1, 1)
     xgb_preds = np.array([1 if prob > 0.5 else 0 for prob in xgb_preds])
     xgb_preds = xgb_preds.reshape(-1, 1)
+    cat_preds = np.array([1 if prob > 0.5 else 0 for prob in cat_preds])
+    cat_preds = cat_preds.reshape(-1, 1)
     y_preds = np.array([1 if prob > 0.5 else 0 for prob in y_preds])
     y_preds = y_preds.reshape(-1, 1)
 
     voting_clf = VotingClassifier(
                         [('LGBM', lgb_clf),
-                         ('XGB', xgb_clf)],
+                         ('XGB', xgb_clf),
+                         ('CAT', cat_clf)],
                         voting='soft')
     voting_preds = voting_kfold_model(voting_clf, 5, X_train, y_train, X_test)
     voting_preds = np.array([1 if prob > 0.5 else 0 for prob in voting_preds])
@@ -108,6 +143,8 @@ if __name__ == "__main__":
     get_clf_eval(y_test, lgb_preds)
     print('xgb')
     get_clf_eval(y_test, xgb_preds)
+    print('cat')
+    get_clf_eval(y_test, cat_preds)
     print('ensemble')
     get_clf_eval(y_test, y_preds)
     print('voting')

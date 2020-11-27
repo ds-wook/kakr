@@ -88,12 +88,14 @@ def xgb_preprocessing(
     cat_col = ['workclass', 'marital_status', 'occupation',
                'relationship', 'race', 'sex', 'native_country']
 
+    all_data.drop(['income', 'fnlwgt', 'education_num'], axis=1, inplace=True)
+
     for col in cat_col:
         map_dic = train.groupby(col)['income'].mean()
         map_dic = map_dic.to_dict()
         all_data[col + '_mean_enc'] =\
             all_data[col].map(lambda x: map_dic.get(x))
-    all_data.drop(['income', 'fnlwgt', 'education_num'], axis=1, inplace=True)
+
     all_data_ohe = pd.get_dummies(all_data)
     train = all_data_ohe.iloc[:len(train)]
     test = all_data_ohe.iloc[len(train):]
@@ -128,6 +130,26 @@ def lgbm_preprocessing(
 
     all_data = pd.concat([train, test])
 
+    others = ['Without-pay', 'Never-worked']
+    all_data['workclass'] = all_data['workclass'].apply(lambda x: 'Other'
+                                                        if x in others else x)
+    all_data['fnlwgt_log'] = np.log(all_data['fnlwgt'])
+
+    grouped = all_data.groupby('education')['income'].agg(['mean', 'count'])
+    grouped = grouped.sort_values('mean').reset_index()
+    edu_col = grouped['education'].values.tolist()
+    lev_col = [f'level_{i}' for i in range(10)]
+    lev_col += ['level_1', 'level_2', 'level_3',
+                'level_3', 'level_6', 'level_9']
+    lev_col.sort()
+    education_map = {edu: lev for edu, lev in zip(edu_col, lev_col)}
+    all_data['education'] = all_data['education'].map(education_map)
+
+    all_data.loc[all_data['marital_status'] == 'Married-AF-spouse',
+                 'marital_status'] = 'Married-civ-spouse'
+    all_data.loc[all_data['occupation'].isin(['Armed-Forces', 'Priv-house-serv']),
+                 'occupation'] = 'Priv-house-serv'
+
     all_data['capital_net'] =\
         all_data['capital_gain'] - all_data['capital_loss']
     pos_key = all_data.loc[(all_data['income'] == 1)
@@ -146,14 +168,8 @@ def lgbm_preprocessing(
     all_data['capital_net_neg_key'] =\
         all_data['capital_net'].apply(lambda x: x in capital_net_neg_key)
 
-    others = ['Without-pay', 'Never-worked']
-
-    all_data['workclass'] = all_data['workclass'].apply(lambda x: 'Other'
-                                                        if x in others else x)
     all_data['country_bin'] =\
         all_data['native_country'].apply(convert_country)
-
-    all_data['fnlwgt_log'] = np.log(all_data['fnlwgt'])
 
     all_data.loc[all_data['marital_status'] == 'Married-AF-spouse',
                  'marital_status'] = 'Married-civ-spouse'
@@ -164,12 +180,8 @@ def lgbm_preprocessing(
     cat_col = ['workclass', 'marital_status', 'occupation',
                'relationship', 'race', 'sex', 'native_country']
 
-    for col in cat_col:
-        map_dic = train.groupby(col)['income'].mean()
-        map_dic = map_dic.to_dict()
-        all_data[col + '_mean_enc'] =\
-            all_data[col].map(lambda x: map_dic.get(x))
     all_data.drop(['income', 'fnlwgt', 'education_num'], axis=1, inplace=True)
+
     all_data_ohe = pd.get_dummies(all_data)
     train = all_data_ohe.iloc[:len(train)]
     test = all_data_ohe.iloc[len(train):]

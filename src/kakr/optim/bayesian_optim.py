@@ -20,3 +20,13 @@ def xgb_parameter(
     xgb_bo.maximize(init_points=5, n_iter=15, acq='ei', xi=0.01)
 
     return xgb_bo.max['params']
+
+
+def cat_parameter(
+        func: Any,
+        params: Dict[str, Tuple[float]]) -> Dict[str, float]:
+    cat_bo = BayesianOptimization(f=func, pbounds=params,
+                                  verbose=2, random_state=91)
+    cat_bo.maximize(init_points=5, n_iter=15, acq='ei', xi=0.01)
+
+    return cat_bo.max['params']
