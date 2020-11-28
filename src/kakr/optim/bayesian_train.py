@@ -1,12 +1,12 @@
 from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
-from sklearn.model_selection import cross_validate
-from sklearn.metrics import make_scorer
-from sklearn.metrics import f1_score
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import train_test_split
 from utils.preprocessing import data_load
 from utils.fea_eng import lgbm_preprocessing, xgb_preprocessing
-from sklearn.model_selection import train_test_split
+from utils.fea_eng import cat_preprocessing
+import numpy as np
 
 
 def lgbm_cv(
@@ -19,10 +19,10 @@ def lgbm_cv(
         reg_alpha: float,
         reg_lambda: float) -> float:
     train, test, submission = data_load('../../data/')
-    train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
+    train_le, test_le, label = lgbm_preprocessing(train, test)
 
     X_train, X_test, y_train, y_test =\
-        train_test_split(train_ohe, label, test_size=0.34, random_state=91)
+        train_test_split(train_le, label, test_size=0.34, random_state=91)
 
     model = LGBMClassifier(
                 n_estimators=500,
@@ -38,10 +38,8 @@ def lgbm_cv(
                 random_state=91
             )
 
-    scoring = {'f1_score': make_scorer(f1_score)}
-    result = cross_validate(model, X_train, y_train, cv=5, scoring=scoring)
-    f1 = result['test_f1_score'].mean()
-    return f1
+    scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1_micro')
+    return np.mean(scores)
 
 
 def xgb_cv(
@@ -63,10 +61,8 @@ def xgb_cv(
             gamma=gamma,
             random_state=91)
 
-    scoring = {'f1_score': make_scorer(f1_score)}
-    result = cross_validate(model, X_train, y_train, cv=5, scoring=scoring)
-    f1 = result['test_f1_score'].mean()
-    return f1
+    scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1_micro')
+    return np.mean(scores)
 
 
 def cat_cv(
@@ -79,10 +75,10 @@ def cat_cv(
         l2_leaf_reg: float,
         scale_pos_weight: float) -> float:
     train, test, submission = data_load('../../data/')
-    train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
+    train_cat, test_cat, label = cat_preprocessing(train, test)
 
     X_train, X_test, y_train, y_test =\
-        train_test_split(train_ohe, label, test_size=0.34, random_state=91)
+        train_test_split(train_cat, label, test_size=0.34, random_state=91)
 
     model = CatBoostClassifier(
                 iterations=int(round(iterations)),
@@ -94,7 +90,5 @@ def cat_cv(
                 l2_leaf_reg=max(min(l2_leaf_reg, 1), 0),
                 scale_pos_weight=max(min(scale_pos_weight, 1), 0)
             )
-    scoring = {'acc_score': make_scorer(f1_score)}
-    result = cross_validate(model, X_train, y_train, cv=5, scoring=scoring)
-    accuracy = result['test_acc_score'].mean()
-    return accuracy
+    scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1_micro')
+    return np.mean(scores)

@@ -8,6 +8,7 @@ from optim.bayesian_optim import lgbm_parameter, xgb_parameter, cat_parameter
 from utils.preprocessing import data_load
 from utils.submission import submit_file
 from utils.fea_eng import lgbm_preprocessing, xgb_preprocessing
+from utils.fea_eng import cat_preprocessing
 from model.kfold_model import stratified_kfold_model
 from model.kfold_model import voting_kfold_model
 
@@ -28,9 +29,9 @@ if __name__ == "__main__":
     args = parse.parse_args()
 
     train, test, submission = data_load(args.path)
-    train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
-    print(f'train shape: {train_ohe.shape}')
-    print(f'test shape: {test_ohe.shape}')
+    train_le, test_le, label = lgbm_preprocessing(train, test)
+    print(f'train shape: {train_le.shape}')
+    print(f'test shape: {test_le.shape}')
 
     lgb_param_bounds = {
         'max_depth': (4, 10),
@@ -61,7 +62,7 @@ if __name__ == "__main__":
                 reg_lambda=max(bo_lgb['reg_lambda'], 0),
                 reg_alpha=max(bo_lgb['reg_alpha'], 0)
                 )
-    lgb_preds = stratified_kfold_model(lgb_clf, 5, train_ohe, label, test_ohe)
+    lgb_preds = stratified_kfold_model(lgb_clf, 5, train_le, label, test_le)
 
     train, test, submission = data_load('../../data/')
     train_ohe, test_ohe, label = xgb_preprocessing(train, test)
@@ -89,9 +90,9 @@ if __name__ == "__main__":
     xgb_preds = stratified_kfold_model(xgb_clf, 5, train_ohe, label, test_ohe)
 
     train, test, submission = data_load(args.path)
-    train_ohe, test_ohe, label = lgbm_preprocessing(train, test)
-    print(f'train shape: {train_ohe.shape}')
-    print(f'test shape: {test_ohe.shape}')
+    train_cat, test_cat, label = cat_preprocessing(train, test)
+    print(f'train shape: {train_cat.shape}')
+    print(f'test shape: {test_cat.shape}')
 
     cat_param_bounds = {
         'iterations': (10, 1000),
@@ -117,16 +118,15 @@ if __name__ == "__main__":
                 scale_pos_weight=max(min(bo_cat['scale_pos_weight'], 1), 0)
     )
 
-    cat_preds = voting_kfold_model(cat_clf, 5, train_ohe, label, test_ohe)
-
+    cat_preds = voting_kfold_model(cat_clf, 5, train_cat, label, test_cat)
+    '''
     voting_clf = VotingClassifier(
                         [('LGBM', lgb_clf),
                          ('XGB', xgb_clf),
                          ('CAT', cat_clf)],
                         voting='soft')
-
-    y_preds = voting_kfold_model(voting_clf, 5, train_ohe, label, test_ohe)
-
-    y_preds = 0.6 * lgb_preds + 0.2 * xgb_preds + 0.2 * cat_preds
+    voting_clf.fit(train_ohe, label)
+    '''
+    y_preds = 0.55 * lgb_preds + 0.37 * xgb_preds + 0.08 * cat_preds
     submission = submit_file(submission, y_preds, args.submit, args.file)
     submission.to_csv(args.submit + args.file, index=False)
