@@ -2,31 +2,22 @@ from bayes_opt import BayesianOptimization
 from typing import Any, Dict, Tuple
 
 
-def lgbm_parameter(
-        func: Any,
-        params: Dict[str, Tuple[float]]) -> Dict[str, float]:
-    lgbm_bo = BayesianOptimization(f=func, pbounds=params,
-                                   verbose=2, random_state=91)
-    lgbm_bo.maximize(init_points=5, n_iter=25, acq='ei', xi=0.01)
+def lgbm_parameter(func: Any, params: Dict[str, Tuple[float]]) -> Dict[str, float]:
+    lgbm_bo = BayesianOptimization(f=func, pbounds=params, verbose=2, random_state=91)
+    lgbm_bo.maximize(init_points=5, n_iter=35, acq="ei", xi=0.01)
 
-    return lgbm_bo.max['params']
+    return lgbm_bo.max["params"]
 
 
-def xgb_parameter(
-        func: Any,
-        params: Dict[str, Tuple[float]]) -> Dict[str, float]:
-    xgb_bo = BayesianOptimization(f=func, pbounds=params,
-                                  verbose=2, random_state=91)
-    xgb_bo.maximize(init_points=5, n_iter=15, acq='ei', xi=0.01)
+def xgb_parameter(func: Any, params: Dict[str, Tuple[float]]) -> Dict[str, float]:
+    xgb_bo = BayesianOptimization(f=func, pbounds=params, verbose=2, random_state=91)
+    xgb_bo.maximize(init_points=5, n_iter=25, acq="ei", xi=0.01)
 
-    return xgb_bo.max['params']
+    return xgb_bo.max["params"]
 
 
-def cat_parameter(
-        func: Any,
-        params: Dict[str, Tuple[float]]) -> Dict[str, float]:
-    cat_bo = BayesianOptimization(f=func, pbounds=params,
-                                  verbose=2, random_state=91)
-    cat_bo.maximize(init_points=5, n_iter=15, acq='ei', xi=0.01)
+def cat_parameter(func: Any, params: Dict[str, Tuple[float]]) -> Dict[str, float]:
+    cat_bo = BayesianOptimization(f=func, pbounds=params, verbose=2, random_state=91)
+    cat_bo.maximize(init_points=5, n_iter=35, acq="ei", xi=0.01)
 
-    return cat_bo.max['params']
+    return cat_bo.max["params"]
